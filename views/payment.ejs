@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Processing Payment</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+      .qr-code {
+        display: block;
+        margin: 20px auto;
+      }
+      .timer {
+        font-size: 16px;
+        margin-top: 20px;
+        text-align: center;
+      }
+      .details {
+        text-align: center;
+        margin-bottom: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1 style="text-align:center;">Processing Payment</h1>
+
+    <!-- UPI Payment Details & QR Code -->
+    <div class="details">
+      <p>Scan this QR code to pay</p>
+      <img id="qrCodeImg" class="qr-code" src="" alt="QR Code" />
+      <p>Merchant UPI ID: <strong><%= typeof upiId !== "undefined" ? upiId : "" %></strong></p>
+      <p>Merchant Name: <strong><%= typeof upiName !== "undefined" ? upiName : "" %></strong></p>
+      <p>Amount: <strong>₹<%= typeof amount !== "undefined" ? amount : "0" %></strong></p>
+    </div>
+
+    <p id="status" style="text-align:center;">Waiting for payment update...</p>
+    <p class="timer">This window will close automatically in <span id="timer">60</span> seconds.</p>
+
+    <script>
+      // Retrieve the variables passed from the server.
+      var paymentId  = '<%= typeof paymentid !== "undefined" ? paymentid : "" %>';
+      var successUri = '<%= typeof successUri !== "undefined" ? successUri : "" %>';
+      var failureUri = '<%= typeof failureUri !== "undefined" ? failureUri : "" %>';
+      var amount     = '<%= typeof amount !== "undefined" ? amount : "0" %>';
+      var upiId      = '<%= typeof upiId !== "undefined" ? upiId : "" %>';
+      var upiName    = '<%= typeof upiName !== "undefined" ? upiName : "" %>';
+
+      // Construct the UPI payment string.
+      // Format: upi://pay?pa=[merchant_upi_id]&pn=[merchant_name]&am=[amount]&cu=INR
+      var upiString = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(upiName)}&am=${amount}&cu=INR`;
+
+      // Set the QR code image using an online QR code generator.
+      document.getElementById('qrCodeImg').src = 'https://api.qrserver.com/v1/create-qr-code/?data=' +
+          encodeURIComponent(upiString) + '&size=200x200';
+
+      // Connect to Socket.IO.
+      var socket = io();
+      socket.emit('joinPaymentRoom', { paymentId: paymentId });
+
+      // Listen for payment status updates.
+      socket.on('paymentSuccess', function(data) {
+        document.getElementById('status').innerText = "Payment Successful!";
+        if (successUri) {
+          setTimeout(function() {
+            window.location.href = successUri;
+          }, 2000);
+        }
+      });
+
+      socket.on('paymentPending', function(data) {
+        document.getElementById('status').innerText = "Payment Pending...";
+      });
+
+      socket.on('paymentFailed', function(data) {
+        document.getElementById('status').innerText = "Payment Failed!";
+        if (failureUri) {
+          setTimeout(function() {
+            window.location.href = failureUri;
+          }, 2000);
+        }
+      });
+
+      // Start a 60-second countdown timer.
+      var timeLeft = 60;
+      var timerDisplay = document.getElementById('timer');
+      var countdownInterval = setInterval(function() {
+        timeLeft--;
+        timerDisplay.innerText = timeLeft;
+        if (timeLeft <= 0) {
+          clearInterval(countdownInterval);
+          window.close();
+        }
+      }, 1000);
+
+      // Fallback auto-close after 60 seconds.
+      setTimeout(function() {
+        window.close();
+      }, 60000);
+    </script>
+  </body>
+</html>

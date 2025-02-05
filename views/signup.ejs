@@ -1,0 +1,34 @@
+<%- include('partials/header', { title: title, user: user }) %>
+<h1>Signup</h1>
+<% if (error) { %>
+  <p style="color:red;"><%= error %></p>
+<% } %>
+<form method="POST" action="/signup">
+  <div>
+    <label>Name:</label>
+    <input type="text" name="name" required>
+  </div>
+  <div>
+    <label>Username:</label>
+    <input type="text" name="username" required>
+  </div>
+  <div>
+    <label>Email:</label>
+    <input type="email" name="email" required>
+  </div>
+  <div>
+    <label>Password:</label>
+    <input type="password" name="password" required>
+  </div>
+  <div>
+    <label>UPI ID:</label>
+    <input type="text" name="upiId">
+  </div>
+  <div>
+    <label>UPI Name:</label>
+    <input type="text" name="upiName">
+  </div>
+  <button type="submit">Signup</button>
+</form>
+<p>Already have an account? <a href="/login">Login here</a></p>
+<%- include('partials/footer') %>

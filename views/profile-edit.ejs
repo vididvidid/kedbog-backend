@@ -1,0 +1,33 @@
+<%- include('partials/header', { title: title, user: user }) %>
+<h1>Edit Your Profile</h1>
+<% if (error) { %>
+  <p style="color:red;"><%= error %></p>
+<% } %>
+<form method="POST" action="/profile/edit">
+  <div>
+    <label>Name:</label>
+    <input type="text" name="name" value="<%= user.name %>" required>
+  </div>
+  <div>
+    <label>Username:</label>
+    <input type="text" name="username" value="<%= user.username %>" required>
+  </div>
+  <div>
+    <label>Email:</label>
+    <input type="email" name="email" value="<%= user.email %>" required>
+  </div>
+  <div>
+    <label>UPI ID:</label>
+    <input type="text" name="upiId" value="<%= user.upiId %>">
+  </div>
+  <div>
+    <label>UPI Name:</label>
+    <input type="text" name="upiName" value="<%= user.upiName %>">
+  </div>
+  <div>
+    <label>FCM Token:</label>
+    <input type="text" name="fcmToken" value="<%= user.fcmToken ? user.fcmToken : '' %>">
+  </div>
+  <button type="submit">Save</button>
+</form>
+<%- include('partials/footer') %>

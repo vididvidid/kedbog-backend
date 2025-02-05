@@ -1,0 +1,226 @@
+<%- include('partials/header', { title: title, user: user }) %>
+<h1>Dashboard</h1>
+<p>Welcome, <%= user.name %>!</p>
+<nav>
+  <a href="/profile">View Profile</a> | 
+  <a href="/profile/edit">Edit Profile</a>
+</nav>
+
+<!-- Pending Payments Section -->
+<h2>Pending Payments</h2>
+<div id="pendingPayments">
+  <!-- Pending payments will be rendered here -->
+</div>
+
+<!-- Payment History Section -->
+<h2>Payment History</h2>
+<div id="historyPayments">
+  <!-- Payment history (all payments) will be rendered here -->
+</div>
+
+<script>
+  // Helper function for API calls
+  async function apiCall(endpoint, options = {}) {
+    try {
+      const response = await fetch(`/payment/api/${endpoint}`, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers
+        }
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error(`API Error (${endpoint}):`, error);
+      throw error;
+    }
+  }
+
+  // Fetch pending payments from the backend
+  async function fetchPendingPayments() {
+    try {
+      const payments = await apiCall('dashboard-data');
+      const container = document.getElementById('pendingPayments');
+      
+      if (payments.length === 0) {
+        container.innerHTML = '<p>No pending payments.</p>';
+        return;
+      }
+
+      const html = `
+        <table border="1" cellpadding="8">
+          <thead>
+            <tr>
+              <th>Payment ID</th>
+              <th>Amount</th>
+              <th>Created At</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${payments.map(payment => `
+              <tr>
+                <td>${payment.paymentId}</td>
+                <td>₹${payment.amount}</td>
+                <td>${new Date(payment.createdAt).toLocaleString()}</td>
+                <td>${payment.status || 'initiated'}</td>
+                <td>
+                  <button onclick="updatePaymentStatus('${payment.paymentId}', 'success')" 
+                          ${payment.status === 'success' ? 'disabled' : ''}>
+                    Success
+                  </button>
+                  <button onclick="updatePaymentStatus('${payment.paymentId}', 'pending')"
+                          ${payment.status === 'pending' ? 'disabled' : ''}>
+                    Pending
+                  </button>
+                  <button onclick="updatePaymentStatus('${payment.paymentId}', 'failed')"
+                          ${payment.status === 'failed' ? 'disabled' : ''}>
+                    Fail
+                  </button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+      
+      container.innerHTML = html;
+    } catch (error) {
+      container.innerHTML = '<p class="error">Error loading pending payments</p>';
+    }
+  }
+
+  // Fetch the full payment history
+  async function fetchPaymentHistory() {
+    try {
+      const history = await apiCall('history');
+      const container = document.getElementById('historyPayments');
+      
+      if (history.length === 0) {
+        container.innerHTML = '<p>No payment history available.</p>';
+        return;
+      }
+
+      const html = `
+        <table border="1" cellpadding="8">
+          <thead>
+            <tr>
+              <th>Payment ID</th>
+              <th>Amount</th>
+              <th>Created At</th>
+              <th>Status</th>
+              <th>Payee Name</th>
+              <th>Success URI</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${history.map(payment => `
+              <tr>
+                <td>${payment.paymentId}</td>
+                <td>₹${payment.amount}</td>
+                <td>${new Date(payment.createdAt).toLocaleString()}</td>
+                <td>${payment.status}</td>
+                <td>${payment.payeeName || '-'}</td>
+                <td>${payment.successUri || '-'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+      
+      container.innerHTML = html;
+    } catch (error) {
+      container.innerHTML = '<p class="error">Error loading payment history</p>';
+    }
+  }
+
+  // Update payment status
+  async function updatePaymentStatus(paymentId, status) {
+    try {
+      await apiCall('update-status', {
+        method: 'POST',
+        body: JSON.stringify({ paymentId, status })
+      });
+      
+      // Show success message
+      const message = document.createElement('div');
+      message.className = 'alert alert-success';
+      message.textContent = `Payment ${paymentId} updated to ${status}`;
+      document.body.insertBefore(message, document.body.firstChild);
+      
+      // Remove message after 3 seconds
+      setTimeout(() => message.remove(), 3000);
+      
+      // Refresh both sections
+      await Promise.all([
+        fetchPendingPayments(),
+        fetchPaymentHistory()
+      ]);
+    } catch (error) {
+      alert(`Error updating payment: ${error.message}`);
+    }
+  }
+
+  // Add some basic styles
+  document.head.insertAdjacentHTML('beforeend', `
+    <style>
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1em 0;
+      }
+      th, td {
+        padding: 8px;
+        text-align: left;
+        border: 1px solid #ddd;
+      }
+      th {
+        background-color: #f5f5f5;
+      }
+      button {
+        margin: 0 5px;
+        padding: 5px 10px;
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .error {
+        color: red;
+        font-weight: bold;
+      }
+      .alert {
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 4px;
+        text-align: center;
+      }
+      .alert-success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+    </style>
+  `);
+
+  // Initial fetch
+  Promise.all([
+    fetchPendingPayments(),
+    fetchPaymentHistory()
+  ]);
+
+  // Refresh every 5 seconds
+  setInterval(() => {
+    Promise.all([
+      fetchPendingPayments(),
+      fetchPaymentHistory()
+    ]);
+  }, 5000);
+</script>
+
+<%- include('partials/footer') %>
